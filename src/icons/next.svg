@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+<svg id="SVGRoot" width="24" height="24" version="1.1" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+ <text x="0.35453007" y="8.3572531" font-family="Arial" font-size="5.832px" stroke-width=".4374" style="font-variant-ligatures:none;line-height:1" xml:space="preserve"><tspan x="0.35453007" y="8.3572531"><tspan fill="#ff0000" font-size="5.832px" stroke-width=".4374">subs</tspan>2<tspan fill="#0f8bde" font-size="5.832px" stroke-width=".4374">srs</tspan></tspan></text>
+ <g transform="matrix(.75824 0 0 .75824 5.934 11.313)" fill="currentColor">
+  <path d="m8 0a8 8 0 1 1 0 16 8 8 0 0 1 0-16zm-3.5 7.5a0.5 0.5 0 0 0 0 1h5.793l-2.147 2.146a0.50063 0.50063 0 0 0 0.708 0.708l3-3a0.5 0.5 0 0 0 0-0.708l-3-3a0.50063 0.50063 0 1 0-0.708 0.708l2.147 2.146z"/>
+ </g>
+</svg>
