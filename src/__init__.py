@@ -1,5 +1,5 @@
+from dataclasses import dataclass
 import json
-import math
 import os
 from typing import Any, List, Optional, Tuple
 import re
@@ -30,7 +30,17 @@ SOUND_REF_RE = re.compile(r"\[sound:(.*?)\]")
 NOTES_FIELD_RE = re.compile(r"(?P<ep>\d+)_(?P<seq>\d+)")
 
 
-def get_subs2srs_context(note: Note) -> Optional[Tuple[str, str, int, int]]:
+@dataclass
+class Subs2srsContext:
+    notetype: str
+    episode: int
+    episode_str: str
+    sequence: int
+    sequence_str: int
+    marker: str
+
+
+def get_subs2srs_context(note: Note) -> Optional[Subs2srsContext]:
     if "Notes" not in note or "SequenceMarker" not in note:
         return None
     notes = note["Notes"]
@@ -38,20 +48,26 @@ def get_subs2srs_context(note: Note) -> Optional[Tuple[str, str, int, int]]:
     if not match:
         return None
     notetype = mw.col.models.get(note.mid)["name"]
-    ep = int(match.group("ep"))
-    seq = int(match.group("seq"))
+    episode_str = match.group("ep")
+    sequence_str = match.group("seq")
+    episode = int(episode_str)
+    sequence = int(sequence_str)
     marker = note["SequenceMarker"]
-    return (notetype, marker, ep, seq)
+    context = Subs2srsContext(
+        notetype, episode, episode_str, sequence, sequence_str, marker
+    )
+    return context
 
 
-def get_subs2srs_audio_filename(notetype: str, marker: str, ep: int, seq: int) -> str:
-    # TODO: optimize queries
-    marker_search = f"SequenceMarker:{marker}"
-    search = mw.col.build_search_string(marker_search, f"Notes:{ep}_*")
-    ep_nids = mw.col.find_notes(search)
-    zero_pad = math.ceil(math.log10(len(ep_nids)))
-    seq = str(seq).zfill(zero_pad)
-    search_terms = [marker_search, f"Notes:{ep}_{seq}*", SearchNode(note=notetype)]
+def get_subs2srs_audio_filename(
+    notetype: str, marker: str, episode_str: int, sequence: int, sequence_width: str
+) -> str:
+    sequence_str = str(sequence).zfill(sequence_width)
+    search_terms = [
+        f"SequenceMarker:{marker}",
+        f"Notes:{episode_str}_{sequence_str}*",
+        SearchNode(note=notetype),
+    ]
     search = mw.col.build_search_string(*search_terms)
     nids = mw.col.find_notes(search)
     if not nids:
@@ -72,19 +88,20 @@ def add_filter(
     context = get_subs2srs_context(ctx.note())
     if not context:
         return field_text
-    notetype, marker, ep, seq = context
     button_text = TOGGLE_CONTEXT_BUTTON.format(
         cmd=consts.FILTER_NAME,
         label=consts.ADDON_NAME,
-        notetype=notetype,
-        marker=marker,
-        ep=ep,
-        seq=seq,
+        notetype=context.notetype,
+        marker=context.marker,
+        ep=context.episode_str,
+        seq=context.sequence_str,
     )
     return field_text + button_text
 
 
-def toggle_context_buttons(context: Any, notetype: str, marker: str, ep: int, seq: int):
+def toggle_context_buttons(
+    context: Any, notetype: str, marker: str, episode_str: str, sequence_str: str
+):
     if isinstance(context, Previewer):
         web = context._web
     elif isinstance(context, CardLayout):
@@ -92,9 +109,11 @@ def toggle_context_buttons(context: Any, notetype: str, marker: str, ep: int, se
     else:
         web = context.web
 
-    def add_sound_button(side: str, seq: str) -> str:
-        nonlocal notetype, marker, ep
-        filename = get_subs2srs_audio_filename(notetype, marker, ep, seq)
+    def add_sound_button(side: str, sequence: int) -> str:
+        nonlocal notetype, marker, episode_str
+        filename = get_subs2srs_audio_filename(
+            notetype, marker, episode_str, sequence, len(sequence_str)
+        )
         if filename:
             if side == "next":
                 button_text = PLAY_BUTTON.format(
@@ -108,8 +127,8 @@ def toggle_context_buttons(context: Any, notetype: str, marker: str, ep: int, se
                 )
             return button_text
 
-    next_button_text = add_sound_button("next", seq + 1)
-    prev_button_text = add_sound_button("prev", seq - 1)
+    next_button_text = add_sound_button("next", int(sequence_str) + 1)
+    prev_button_text = add_sound_button("prev", int(sequence_str) - 1)
     buttons_text = f"<div>{prev_button_text}{next_button_text}</div>"
     js = f"""
 var subs2srsContextToggle = document.getElementById('subs2srs-context-toggle');
@@ -133,9 +152,9 @@ def handle_play_message(handled: Tuple[bool, Any], message: str, context: Any):
     elif subcmd == "show":
         notetype = parts[2]
         marker = parts[3]
-        ep = int(parts[4])
-        seq = int(parts[5])
-        toggle_context_buttons(context, notetype, marker, ep, seq)
+        episode_str = parts[4]
+        sequence_str = parts[5]
+        toggle_context_buttons(context, notetype, marker, episode_str, sequence_str)
     return (True, None)
 
 
@@ -143,8 +162,14 @@ def play_previous(editor: Editor):
     context = get_subs2srs_context(editor.note)
     if not context:
         return
-    notetype, marker, ep, seq = context
-    audio = get_subs2srs_audio_filename(notetype, marker, ep, seq - 1)
+
+    audio = get_subs2srs_audio_filename(
+        context.notetype,
+        context.marker,
+        context.episode_str,
+        context.sequence - 1,
+        len(context.sequence_str),
+    )
     if audio:
         play(audio)
 
@@ -153,8 +178,13 @@ def play_next(editor: Editor):
     context = get_subs2srs_context(editor.note)
     if not context:
         return
-    notetype, marker, ep, seq = context
-    audio = get_subs2srs_audio_filename(notetype, marker, ep, seq + 1)
+    audio = get_subs2srs_audio_filename(
+        context.notetype,
+        context.marker,
+        context.episode_str,
+        context.sequence + 1,
+        len(context.sequence_str),
+    )
     if audio:
         play(audio)
 
