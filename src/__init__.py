@@ -59,12 +59,19 @@ def get_subs2srs_context(note: Note) -> Optional[Subs2srsContext]:
     return context
 
 
+ANKI_WILDCARD_RE = re.compile(r"([\\*_])")
+
+
+def escape_anki_wildcards(search):
+    return ANKI_WILDCARD_RE.sub(r"\\\1", search)
+
+
 def get_subs2srs_audio_filename(
     notetype: str, marker: str, episode_str: int, sequence: int, sequence_width: str
 ) -> str:
     sequence_str = str(sequence).zfill(sequence_width)
     search_terms = [
-        f"SequenceMarker:{marker}",
+        f"SequenceMarker:{escape_anki_wildcards(marker)}",
         f"Notes:{episode_str}_{sequence_str}*",
         SearchNode(note=notetype),
     ]
