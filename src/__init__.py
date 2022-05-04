@@ -1,19 +1,19 @@
-from dataclasses import dataclass
 import json
 import os
-from typing import Any, List, Optional, Tuple
 import re
+from dataclasses import dataclass
+from typing import Any, List, Optional, Tuple, Union
 
-from aqt.gui_hooks import webview_did_receive_js_message, editor_did_init_buttons
-from anki.hooks import field_filter
-from anki.template import TemplateRenderContext
 from anki.collection import SearchNode
+from anki.hooks import field_filter
+from anki.notes import Note
+from anki.template import TemplateRenderContext
 from aqt import mw
-from aqt.sound import play
 from aqt.browser.previewer import Previewer
 from aqt.clayout import CardLayout
 from aqt.editor import Editor
-from anki.notes import Note
+from aqt.gui_hooks import editor_did_init_buttons, webview_did_receive_js_message
+from aqt.sound import play
 
 from . import consts
 
@@ -36,7 +36,7 @@ class Subs2srsContext:
     episode: int
     episode_str: str
     sequence: int
-    sequence_str: int
+    sequence_str: str
     marker: str
 
 
@@ -62,15 +62,15 @@ def get_subs2srs_context(note: Note) -> Optional[Subs2srsContext]:
 ANKI_WILDCARD_RE = re.compile(r"([\\*_])")
 
 
-def escape_anki_wildcards(search):
+def escape_anki_wildcards(search: str) -> str:
     return ANKI_WILDCARD_RE.sub(r"\\\1", search)
 
 
 def get_subs2srs_audio_filename(
-    notetype: str, marker: str, episode_str: int, sequence: int, sequence_width: str
+    notetype: str, marker: str, episode_str: str, sequence: int, sequence_width: int
 ) -> str:
     sequence_str = str(sequence).zfill(sequence_width)
-    search_terms = [
+    search_terms: List[Union[str, SearchNode]] = [
         f"SequenceMarker:{escape_anki_wildcards(marker)}",
         f"Notes:{episode_str}_{sequence_str}*",
         SearchNode(note=notetype),
@@ -81,15 +81,15 @@ def get_subs2srs_audio_filename(
         return ""
     note = mw.col.get_note(nids[0])
     sound = note["Audio"]
-    m = SOUND_REF_RE.match(sound)
-    if m:
-        return m.group(1)
+    match = SOUND_REF_RE.match(sound)
+    if match:
+        return match.group(1)
     return ""
 
 
 def add_filter(
     field_text: str, field_name: str, filter_name: str, ctx: TemplateRenderContext
-):
+) -> str:
     if filter_name != consts.FILTER_NAME:
         return field_text
     context = get_subs2srs_context(ctx.note())
@@ -108,9 +108,9 @@ def add_filter(
 
 def toggle_context_buttons(
     context: Any, notetype: str, marker: str, episode_str: str, sequence_str: str
-):
+) -> None:
     if isinstance(context, Previewer):
-        web = context._web
+        web = context._web  # pylint: disable=protected-access
     elif isinstance(context, CardLayout):
         web = context.preview_web
     else:
@@ -121,18 +121,19 @@ def toggle_context_buttons(
         filename = get_subs2srs_audio_filename(
             notetype, marker, episode_str, sequence, len(sequence_str)
         )
-        if filename:
-            if side == "next":
-                button_text = PLAY_BUTTON.format(
-                    cmd=consts.FILTER_NAME, filename=filename, transform=""
-                )
-            else:
-                button_text = PLAY_BUTTON.format(
-                    cmd=consts.FILTER_NAME,
-                    filename=filename,
-                    transform="transform: scale(-1,1);",
-                )
-            return button_text
+        if not filename:
+            return ""
+        if side == "next":
+            button_text = PLAY_BUTTON.format(
+                cmd=consts.FILTER_NAME, filename=filename, transform=""
+            )
+        else:
+            button_text = PLAY_BUTTON.format(
+                cmd=consts.FILTER_NAME,
+                filename=filename,
+                transform="transform: scale(-1,1);",
+            )
+        return button_text
 
     next_button_text = add_sound_button("next", int(sequence_str) + 1)
     prev_button_text = add_sound_button("prev", int(sequence_str) - 1)
@@ -147,7 +148,9 @@ if(!subs2srsContextToggle.dataset.shown) {{
     web.eval(js)
 
 
-def handle_play_message(handled: Tuple[bool, Any], message: str, context: Any):
+def handle_play_message(
+    handled: Tuple[bool, Any], message: str, context: Any
+) -> Tuple[bool, Any]:
     parts = message.split(":")
     cmd = parts[0]
     if cmd != consts.FILTER_NAME:
@@ -165,7 +168,7 @@ def handle_play_message(handled: Tuple[bool, Any], message: str, context: Any):
     return (True, None)
 
 
-def play_previous(editor: Editor):
+def play_previous(editor: Editor) -> None:
     context = get_subs2srs_context(editor.note)
     if not context:
         return
@@ -181,7 +184,7 @@ def play_previous(editor: Editor):
         play(audio)
 
 
-def play_next(editor: Editor):
+def play_next(editor: Editor) -> None:
     context = get_subs2srs_context(editor.note)
     if not context:
         return
@@ -196,7 +199,7 @@ def play_next(editor: Editor):
         play(audio)
 
 
-def add_editor_buttons(buttons: List[str], editor: Editor):
+def add_editor_buttons(buttons: List[str], editor: Editor) -> None:
     prev_button = editor.addButton(
         icon=os.path.join(consts.ICONS_DIR, "previous.svg"),
         cmd="subs2srs_context_previous",

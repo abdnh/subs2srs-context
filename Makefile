@@ -1,4 +1,4 @@
-.PHONY: all zip clean format check install
+.PHONY: all zip clean fix mypy pylint install
 all: zip
 
 PACKAGE_NAME := subs2srs_context
@@ -16,11 +16,15 @@ install: src/*
 	rm -rf ankiprofile/addons21/$(PACKAGE_NAME)
 	cp -r src/. ankiprofile/addons21/$(PACKAGE_NAME)
 
-format:
-	python -m black src/
+fix:
+	python -m black src
+	python -m isort src
 
-check:
-	python -m mypy src/
+mypy:
+	python -m mypy src
+
+pylint:
+	python -m pylint src
 
 clean:
 	rm -f $(PACKAGE_NAME).ankiaddon

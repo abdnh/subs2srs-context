@@ -1,3 +1,6 @@
-anki
-aqt
+anki==2.1.49
+aqt==2.1.49
 black
+isort
+mypy
+pylint
