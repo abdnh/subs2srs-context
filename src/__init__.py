@@ -30,18 +30,17 @@ def add_filter(
         nid_elements = soup.select(nid_selector)
         if not nid_elements:
             return field_text
-        if nid_elements:
-            for nid_element in nid_elements:
-                try:
-                    nid = int(nid_element.get("data-nid"))
-                except:
-                    pass
-                buttons_text = subs2srs_context.get_audio_buttons(NoteId(nid))
-                nid_element.append(BeautifulSoup(buttons_text, "html.parser"))
+        for nid_element in nid_elements:
+            try:
+                nid = int(nid_element.get("data-nid"))
+            except:
+                pass
+            buttons_text = subs2srs_context.get_audio_buttons(NoteId(nid))
+            nid_element.append(BeautifulSoup(buttons_text, "html.parser"))
         return str(soup)
-    else:
-        buttons_text = subs2srs_context.get_audio_buttons(ctx.note().id)
-        return field_text + buttons_text
+
+    buttons_text = subs2srs_context.get_audio_buttons(ctx.note().id)
+    return field_text + buttons_text
 
 
 def handle_play_message(
