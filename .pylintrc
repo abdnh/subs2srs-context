@@ -10,12 +10,7 @@ disable=
   missing-function-docstring,
   missing-module-docstring,
   missing-class-docstring,
-  redefined-outer-name,
   unused-argument,
-  broad-except,
-  bare-except,
-  attribute-defined-outside-init,
-  too-many-instance-attributes
 
 [BASIC]
 good-names =
