@@ -1,54 +1,18 @@
 import os
-import re
 from typing import Any, List, Tuple
 
-from anki.errors import NotFoundError
 from anki.hooks import field_filter
 from anki.notes import NoteId
 from anki.template import TemplateRenderContext
-from aqt import mw
 from aqt.editor import Editor
 from aqt.gui_hooks import editor_did_init_buttons, webview_did_receive_js_message
 from aqt.sound import play
 from bs4 import BeautifulSoup
 
 from . import consts
+from .subs2srs_context import Subs2srsContext
 
-PLAY_BUTTON = """<a class="replay-button soundLink" href=# onclick="pycmd('{cmd}:play:{filename}'); return false;">
-    <svg class="playImage" viewBox="0 0 64 64" version="1.1" style="{transform}">
-        <circle cx="32" cy="32" r="29" />
-        <path d="M56.502,32.301l-37.502,20.101l0.329,-40.804l37.173,20.703Z" />
-    </svg>
-</a>"""
-
-SOUND_REF_RE = re.compile(r"\[sound:(.*?)\]")
-
-
-def get_subs2srs_audio_filename(nid: NoteId) -> str:
-    try:
-        note = mw.col.get_note(nid)
-    except NotFoundError:
-        return ""
-    if "Audio" not in note:
-        return ""
-    sound = note["Audio"]
-    match = SOUND_REF_RE.match(sound)
-    if match:
-        return match.group(1)
-    return ""
-
-
-def get_subs2srs_audio_button(nid: NoteId, position: str) -> str:
-    button_text = ""
-    neighbor_nid = (nid + 1) if position == "next" else (nid - 1)
-    filename = get_subs2srs_audio_filename(NoteId(neighbor_nid))
-    if filename:
-        button_text = PLAY_BUTTON.format(
-            cmd=consts.FILTER_NAME,
-            filename=filename,
-            transform="transform: scale(-1,1);" if position == "prev" else "",
-        )
-    return button_text
+subs2srs_context = Subs2srsContext()
 
 
 def add_filter(
@@ -72,15 +36,11 @@ def add_filter(
                     nid = int(nid_element.get("data-nid"))
                 except:
                     pass
-                prev_button_text = get_subs2srs_audio_button(nid, "prev")
-                next_button_text = get_subs2srs_audio_button(nid, "next")
-                buttons_text = f"<div>{prev_button_text}{next_button_text}</div>"
+                buttons_text = subs2srs_context.get_audio_buttons(NoteId(nid))
                 nid_element.append(BeautifulSoup(buttons_text, "html.parser"))
         return str(soup)
     else:
-        prev_button_text = get_subs2srs_audio_button(ctx.note().id, "prev")
-        next_button_text = get_subs2srs_audio_button(ctx.note().id, "next")
-        buttons_text = f"<div>{prev_button_text}{next_button_text}</div>"
+        buttons_text = subs2srs_context.get_audio_buttons(ctx.note().id)
         return field_text + buttons_text
 
 
@@ -99,13 +59,13 @@ def handle_play_message(
 
 
 def play_previous(editor: Editor) -> None:
-    audio = get_subs2srs_audio_filename(NoteId(editor.note.id - 1))
+    audio = subs2srs_context.get_audio_filename(NoteId(editor.note.id - 1))
     if audio:
         play(audio)
 
 
 def play_next(editor: Editor) -> None:
-    audio = get_subs2srs_audio_filename(NoteId(editor.note.id + 1))
+    audio = subs2srs_context.get_audio_filename(NoteId(editor.note.id + 1))
     if audio:
         play(audio)
 
