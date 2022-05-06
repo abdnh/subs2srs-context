@@ -10,6 +10,7 @@ from aqt import mw
 from aqt.editor import Editor
 from aqt.gui_hooks import editor_did_init_buttons, webview_did_receive_js_message
 from aqt.sound import play
+from bs4 import BeautifulSoup
 
 from . import consts
 
@@ -55,10 +56,32 @@ def add_filter(
 ) -> str:
     if not filter_name.startswith(consts.FILTER_NAME):
         return field_text
-    prev_button_text = get_subs2srs_audio_button(ctx.note().id, "prev")
-    next_button_text = get_subs2srs_audio_button(ctx.note().id, "next")
-    buttons_text = f"<div>{prev_button_text}{next_button_text}</div>"
-    return field_text + buttons_text
+    options = {}
+    for key, value in (pair.split("=") for pair in filter_name.split()[1:]):
+        options[key] = value
+    # FIXME: doesn't support selectors with spaces or "="
+    nid_selector = options.get("nid_selector", "")
+    if nid_selector:
+        soup = BeautifulSoup(field_text, "html.parser")
+        nid_elements = soup.select(nid_selector)
+        if not nid_elements:
+            return field_text
+        if nid_elements:
+            for nid_element in nid_elements:
+                try:
+                    nid = int(nid_element.get("data-nid"))
+                except:
+                    pass
+                prev_button_text = get_subs2srs_audio_button(nid, "prev")
+                next_button_text = get_subs2srs_audio_button(nid, "next")
+                buttons_text = f"<div>{prev_button_text}{next_button_text}</div>"
+                nid_element.append(BeautifulSoup(buttons_text, "html.parser"))
+        return str(soup)
+    else:
+        prev_button_text = get_subs2srs_audio_button(ctx.note().id, "prev")
+        next_button_text = get_subs2srs_audio_button(ctx.note().id, "next")
+        buttons_text = f"<div>{prev_button_text}{next_button_text}</div>"
+        return field_text + buttons_text
 
 
 def handle_play_message(
