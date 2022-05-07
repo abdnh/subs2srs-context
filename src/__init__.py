@@ -4,6 +4,7 @@ from typing import Any, List, Tuple
 from anki.hooks import field_filter
 from anki.notes import NoteId
 from anki.template import TemplateRenderContext
+from aqt import mw
 from aqt.editor import Editor
 from aqt.gui_hooks import editor_did_init_buttons, webview_did_receive_js_message
 from aqt.sound import play
@@ -13,6 +14,7 @@ from . import consts
 from .subs2srs_context import Subs2srsContext
 
 subs2srs_context = Subs2srsContext()
+mw.subs2srs_context = subs2srs_context
 
 
 def add_filter(
