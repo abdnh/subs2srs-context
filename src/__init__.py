@@ -1,5 +1,5 @@
 import os
-from typing import Any, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 from anki.hooks import field_filter
 from anki.notes import NoteId
@@ -15,6 +15,40 @@ from .subs2srs_context import Subs2srsContext
 
 subs2srs_context = Subs2srsContext()
 mw.subs2srs_context = subs2srs_context
+
+
+def get_bool_filter_option(options: Dict, key: str, default: bool = False) -> bool:
+    return (options[key].lower() == "true") if key in options else default
+
+
+def get_context(field_text: str, nid: NoteId, options: Dict) -> str:
+    text = ""
+    # Default to fetching audios only
+    audio = get_bool_filter_option(options, "audio", True)
+    expression = get_bool_filter_option(options, "expression", False)
+    if audio and not expression:
+        # text += subs2srs_context.get_audio_buttons(nid)
+        prev_button_text = subs2srs_context.get_audio_button(nid, "prev", flip=True)
+        next_button_text = subs2srs_context.get_audio_button(nid, "next")
+        buttons_text = f"<div>{prev_button_text}{next_button_text}</div>"
+        text = field_text + buttons_text
+    else:
+        buttons = subs2srs_context.get_audio_buttons(nid, flip=False)
+        expressions = subs2srs_context.get_expressions(nid)
+        text += '<div style="display: inline-flex; flex-direction: row;">'
+        flex_items = []
+        for i in range(len(buttons)):
+            expr = expressions[i]
+            btn = buttons[i]
+            item = ""
+            item += "<div>"
+            item += f"<span>{expr}</span>"
+            item += f"<span>{btn}</span>"
+            item += "</div>"
+            flex_items.append(item)
+        flex_items.insert(len(buttons) // 2, f"<div>{field_text}</div>")
+        text += "".join(flex_items)
+    return text
 
 
 def add_filter(
@@ -37,12 +71,11 @@ def add_filter(
                 nid = int(nid_element.get("data-nid"))
             except:
                 pass
-            buttons_text = subs2srs_context.get_audio_buttons(NoteId(nid))
-            nid_element.append(BeautifulSoup(buttons_text, "html.parser"))
+            text = get_context(field_text, NoteId(nid), options)
+            nid_element.append(BeautifulSoup(text, "html.parser"))
         return str(soup)
 
-    buttons_text = subs2srs_context.get_audio_buttons(ctx.note().id)
-    return field_text + buttons_text
+    return get_context(field_text, ctx.note().id, options)
 
 
 def handle_play_message(

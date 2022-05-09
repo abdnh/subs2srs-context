@@ -1,4 +1,5 @@
 import re
+from typing import List
 
 from anki.errors import NotFoundError
 from anki.notes import NoteId
@@ -30,7 +31,7 @@ class Subs2srsContext:
             return match.group(1)
         return ""
 
-    def get_audio_button(self, nid: NoteId, position: str) -> str:
+    def get_audio_button(self, nid: NoteId, position: str, flip: bool = False) -> str:
         button_text = ""
         neighbor_nid = (nid + 1) if position == "next" else (nid - 1)
         filename = self.get_audio_filename(NoteId(neighbor_nid))
@@ -38,12 +39,29 @@ class Subs2srsContext:
             button_text = self.PLAY_BUTTON.format(
                 cmd=consts.FILTER_NAME,
                 filename=filename,
-                transform="transform: scale(-1,1);" if position == "prev" else "",
+                transform="transform: scale(-1,1);" if flip else "",
             )
         return button_text
 
-    def get_audio_buttons(self, nid: NoteId) -> str:
-        prev_button_text = self.get_audio_button(nid, "prev")
-        next_button_text = self.get_audio_button(nid, "next")
-        buttons_text = f"<div>{prev_button_text}{next_button_text}</div>"
-        return buttons_text
+    def get_audio_buttons(self, nid: NoteId, flip: bool = True) -> List[str]:
+        prev_button = self.get_audio_button(nid, "prev", flip=flip)
+        next_button = self.get_audio_button(nid, "next")
+        return [prev_button, next_button]
+
+    def get_expressions(self, nid: NoteId) -> List[str]:
+        """Get the contents of the Expression field for the previous and next subs2srs notes."""
+        contents = []
+        nids = [nid - 1, nid + 1]
+        for n in nids:
+            try:
+                note = mw.col.get_note(NoteId(n))
+            except NotFoundError:
+                contents.append("")
+                continue
+            if "Expression" not in note:
+                contents.append("")
+                continue
+            expression = note["Expression"]
+            contents.append(expression)
+
+        return contents
