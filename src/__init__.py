@@ -8,7 +8,6 @@ from aqt import mw
 from aqt.editor import Editor
 from aqt.gui_hooks import editor_did_init_buttons, webview_did_receive_js_message
 from aqt.sound import play
-from bs4 import BeautifulSoup
 
 from . import consts
 from .subs2srs_context import Subs2srsContext
@@ -59,21 +58,6 @@ def add_filter(
     options = {}
     for key, value in (pair.split("=") for pair in filter_name.split()[1:]):
         options[key] = value
-    # FIXME: doesn't support selectors with spaces or "="
-    nid_selector = options.get("nid_selector", "")
-    if nid_selector:
-        soup = BeautifulSoup(field_text, "html.parser")
-        nid_elements = soup.select(nid_selector)
-        if not nid_elements:
-            return field_text
-        for nid_element in nid_elements:
-            try:
-                nid = int(nid_element.get("data-nid"))
-            except:
-                pass
-            text = get_context(field_text, NoteId(nid), options)
-            nid_element.append(BeautifulSoup(text, "html.parser"))
-        return str(soup)
 
     return get_context(field_text, ctx.note().id, options)
 
