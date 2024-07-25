@@ -1,4 +1,4 @@
-anki==2.1.49
+anki==24.06
 aqt==2.1.49
 black
 isort
